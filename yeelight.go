@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 )
@@ -18,14 +19,31 @@ type Config struct {
 }
 
 type Request struct {
-	ID     int           `json:"id"`
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
+	ID     int         `json:"id"`
+	Method string      `json:"method"`
+	Params interface{} `json:"params"`
 }
 
 type Response struct {
 	ID     int           `json:"id"`
 	Result []interface{} `json:"result"`
+}
+
+type ListenResponse struct {
+	Method string `json:"method"`
+	Params struct {
+		Name             string `json:"name"`
+		Power            string `json:"power"`
+		ColorTemperature int    `json:"ct"`
+		Brightness       int    `json:"bright"`
+		Flowing          int    `json:"flowing"`
+		FlowParams       string `json:"flow_params"`
+		ColorMode        int    `json:"color_mode"`
+		Rgb              int    `json:"rgb"`
+		Hue              int    `json:"hue"`
+		Saturation       int    `json:"sat"`
+		DelayOff         int    `json:"delayoff"`
+	} `json:"params"`
 }
 
 type FlowExpression struct {
@@ -69,6 +87,84 @@ After you run the tcp you should close the tcp connection.
 */
 func (c *Config) Close() {
 	c.conn.Close()
+}
+
+/*
+This function is used to scan Xiaomi Yeelight device in your Local Area Network with CIDR IP Address.
+*/
+func Discovery(cidr string) ([]string, error) {
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		panic(err)
+	}
+
+	var ipDevice []string
+	for addr := prefix.Addr(); prefix.Contains(addr); addr = addr.Next() {
+		timeout := time.Duration(10 * time.Millisecond)
+		_, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", addr, 55443), timeout)
+		if err == nil {
+			ipDevice = append(ipDevice, addr.String())
+		}
+	}
+
+	return ipDevice, nil
+}
+
+/*
+This function is used to Listen Yeelight device by IP Address. You should use ReadMessage function to read tcp message.
+
+Example:
+
+	conn, err := yeelight.Listen("192.168.100.7")
+	if err != nil {
+		...
+	}
+
+	defer conn.Close()
+
+	for {
+		_, err := yeelight.ReadMessage(conn)
+		if err != nil {
+			...
+		}
+	}
+*/
+func Listen(ip string) (net.Conn, error) {
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ip, 55443))
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+/*
+This function is used to read TCP message from function Listen.
+
+Example:
+
+	for {
+		_, err := yeelight.ReadMessage(conn)
+		if err != nil {
+			...
+		}
+	}
+*/
+func ReadMessage(conn net.Conn) (ListenResponse, error) {
+	data := ListenResponse{}
+
+	message, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return data, err
+	}
+	fmt.Printf("%v \n", message)
+
+	err = json.Unmarshal([]byte(message), &data)
+	if err != nil {
+		return data, err
+	}
+
+	return data, err
 }
 
 /*

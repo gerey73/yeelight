@@ -11,6 +11,35 @@ type Yeelight struct {
 	IpAddress string
 }
 
+func TestDiscovery(t *testing.T) {
+
+	ips, err := yeelight.Discovery("192.168.100.0/24")
+	if err != nil {
+		t.Error(err)
+		t.Fail()
+	}
+
+	t.Log(ips)
+}
+
+func TestListen(t *testing.T) {
+	conn, err := yeelight.Listen("192.168.100.7")
+	if err != nil {
+		t.Error(err)
+		t.Fail()
+	}
+
+	defer conn.Close()
+
+	for {
+		_, err := yeelight.ReadMessage(conn)
+		if err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+	}
+}
+
 func TestGetProps(t *testing.T) {
 	y := yeelight.New(&yeelight.Config{
 		IpAddress: "192.168.100.7",
