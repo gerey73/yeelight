@@ -157,7 +157,7 @@ func ReadMessage(conn net.Conn) (ListenResponse, error) {
 	if err != nil {
 		return data, err
 	}
-	fmt.Printf("%v \n", message)
+	fmt.Printf("Test :%v \n", message)
 
 	err = json.Unmarshal([]byte(message), &data)
 	if err != nil {
